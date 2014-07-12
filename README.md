@@ -101,6 +101,65 @@ This page provides a simple live status of the app and its monitors.
 
 ## Development
 
+### Class/Object Architecture
+
+    runserver
+    |
+    +-- nd_service_registry.KazooServiceRegistry
+    |   | Connection to Zookeeper
+    |
+    +-- alert.Dispatcher
+    |   | Handles dispatching of all alerts to Alerter objects
+    |   |
+    |   +-- alerts.email.EmailAlerter
+    |   |   | Sends Email-Based Alerts Asynchronously
+    |   |   |
+    |   |   +-- tornadomail.backends.smtp.EmailBackend()
+    |   |
+    |   +-- alerts.rest.HipChatAlerter
+    |       | Sends Hipchat Alerts Asynchronously
+    |
+    +-- cluster.State
+    |   | Handles node-to-node communication via Zookeeper
+    |   |
+    |   +-- Registers /zk_monitor/agent/<agent name>
+    |
+    +-- monitor.Monitor
+    |   | Monitors all configured paths
+    |   |
+    |   +-- Obj Ref -> alerts.Dispatcher
+    |       | Alerts are fired off to the Dispatcher, the Dispatcher
+    |       | handles determining whether or not the alert is a dup, a shift
+    |       | from in-compliance to out-of-compliance (or vice versa),
+    |       | and which Alerters to fire off (Hipchat, Email, etc).
+    |
+    +-- tornado.Application
+    |   | Handles all web requests
+    |   |
+    |   +-- web.app.getApplication()
+    |       |
+    |       +-- root.RootHandler
+    |       |   URL: /
+    |       |
+    |       +-- state.StateHandler
+    |       |   URL: /state
+    |       |   Obj Ref -> nd_service_registry.KazooServiceRegistry
+    |       |   Obj Ref -> monitor.Monitor
+
+### Setup
+
+    # Create a dedicated Python virtual environment and source it
+    virtualenv --no-site-packages .venv
+    unset PYTHONPATH
+    source .venv/bin/activate
+
+    # Install the dependencies
+    make build
+
+    # Run the tests
+    make test
+
+
 ### Postfix on Mac OSX
 
 If you want to develop on a Mac OSX host, you need to enable email the

@@ -10,24 +10,32 @@ class TestEmailAlerter(unittest.TestCase):
         self.mocked_cs = mock.MagicMock()
         self.mocked_lock = mock.MagicMock()
         self.mocked_cs.getLock.return_value = self.mocked_lock
-        self.alerter = email.EmailAlerter(self.mocked_cs)
+        self.alerter = email.EmailAlerter()
 
     @mock.patch('tornadomail.backends.smtp.EmailBackend')
     @mock.patch('zk_monitor.alerts.email.EmailAlert')
     def testAlert(self, mocked_alert, mocked_backend):
         backend_instance = mocked_backend.return_value
-        params = {
-            'body': 'Unit Test Body',
-            'email': 'unit@test.com',
-        }
-        self.alerter._alert('Unit Test Message', params)
-        mocked_alert.assert_called_with(
-            'Unit Test Message', 'Unit Test Body', 'unit@test.com',
-            backend_instance)
 
-    def testAlertWithBadParams(self):
-        self.assertEquals(None, self.alerter.alert('unittest', params=None))
-        self.assertEquals(None, self.alerter.alert('unittest', params={}))
+        self.alerter._alert('/foo', 'Broken',
+                            'Unit Test Message', 'unit@test.com')
+        mocked_alert.assert_called_with(
+            subject='Warning! /foo has an alert!',
+            body='Unit Test Message\n/foo is in the Broken state.',
+            email='unit@test.com',
+            conn=backend_instance)
+
+    def testNotValid(self):
+        # _alert() should exit if "params" is not defined.
+        self.assertEquals(
+            None,
+            self.alerter._alert(
+                '/foo', 'Broken', 'Unit Test Message', {}))
+
+    def testSingleBackend(self):
+        once = self.alerter._mail_backend
+        twice = self.alerter._mail_backend
+        self.assertEqual(once, twice)
 
 
 class TestEmailAlert(unittest.TestCase):

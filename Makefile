@@ -12,12 +12,16 @@ ZOOKEEPER_URL = http://apache.osuosl.org/zookeeper/zookeeper-$(ZOOKEEPER_VERSION
 
 all: build
 
-build:
-	pip install --allow-unverified tornadomail --allow-external tornadomail -r requirements.txt
+build: .build
+
+.build: requirements.txt requirements.test.txt
+	python setup.py install
 	pip install -r requirements.test.txt
+	touch .build
 
 clean:
 	rm -rf $(BUILD_DIRS)
+	rm .build
 
 test: build
 	python setup.py test pep8 pyflakes

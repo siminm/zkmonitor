@@ -13,7 +13,10 @@
 # Copyright 2013 Nextdoor.com, Inc
 
 """
-Handles generating the root index page for web requests.
+Serves up a JSON status document.
+
+Includes the status for all of the monitored paths from the Monitor
+object as well as connection state information for Zookeeper.
 """
 
 __author__ = 'matt@nextdoor.com (Matt Wise)'
@@ -30,14 +33,15 @@ class StatusHandler(web.RequestHandler):
 
     def initialize(self, settings):
         """Log the initialization of this root handler"""
-        self.state = {
+        self.status = {
+            'version': VERSION,
             'zookeeper': {
                 'connected': settings['ndsr']._zk.connected,
-                },
-            'monitor': settings['monitor'].state(),
-            'version': VERSION
-            }
+            },
+            'monitor': settings['monitor'].status(),
+            'dispatcher': settings['dispatcher'].status(),
+        }
 
     def get(self):
         self.set_header('Content-Type', 'text/json; charset=UTF-8')
-        self.write(json.dumps(self.state, indent=4, sort_keys=True))
+        self.write(json.dumps(self.status, indent=4, sort_keys=True))

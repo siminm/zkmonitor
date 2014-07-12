@@ -36,33 +36,48 @@ class EmailAlerter(base.AlerterBase):
             body: Hey bob, fix this!
           children: 1
     """
+
+    _saved_mail_backend = None
+
     @property
     def _mail_backend(self):
         """Returns a single EmailBackend object every time its called"""
-        return smtp.EmailBackend()
+        if not self._saved_mail_backend:
+            self._saved_mail_backend = smtp.EmailBackend()
 
-    def _alert(self, message, params):
+        return self._saved_mail_backend
+
+    def _alert(self, path, state, message, params):
         """Send an email alert.
 
         args:
-            message: Main message contents.
-            params: A dictionary containing additional message params:
-              { 'email': <email address to send alert to>,
-                'body': <full message body> }
+            path: String of the path that is being alerted.
+            state: String of the monitor.states for given path.
+            message: String of details regarding this state.
+            params: Arbitrary data supplied by the configuration file for this
+                    alerter. Currently expecting a string of the address.
         """
-        subject = message
-        try:
-            body = params['body']
-            email = params['email']
-        except (TypeError, KeyError):
-            log.debug('Invalid configuration passed: %s' % params)
+        to_address = params
+        if not to_address:
+            log.error('Invalid email address from params: %s' % params)
             return
+
+        # Subject should not be status or message dependent to allow for proper
+        # email threading.
+        subject = "Warning! %s has an alert!" % path
+
+        # Body can be descriptive!
+        body = '%s\n%s is in the %s state.' % (message, path, state)
 
         # Create the Alert object. The object takes care of everything from
         # here so we store no reference to it (and let it get garbage
         # collected on its own later)
         log.debug('Creating Email Alert Message: %s' % message)
-        EmailAlert(subject, body, email, self._mail_backend)
+        EmailAlert(
+            subject=subject,
+            body=body,
+            email=to_address,
+            conn=self._mail_backend)
 
 
 class EmailAlert(object):
